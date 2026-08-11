@@ -1,38 +1,113 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Dashboard</title>
-    <!-- Usando um link alternativo e garantindo o carregamento -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Recebimentos</title>
+  <!-- Biblioteca PapaParse carregada corretamente -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root { --azul: #2563eb; --azul-escuro: #1e3a8a; --verde: #059669; --laranja: #d97706; --vermelho: #dc2626; --cinza-fundo: #f3f4f6; --cinza-texto: #6b7280; --borda: #e5e7eb; --branco: #ffffff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: var(--cinza-fundo); color: #111827; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    h1 { margin: 0; color: var(--azul-escuro); }
+    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 26px; }
+    .card { background: var(--branco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid var(--azul); }
+    .card-valor { font-size: 20px; font-weight: bold; margin-top: 8px; }
+    .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .secao { background: var(--branco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--borda); font-size: 14px; }
+  </style>
 </head>
+
 <body>
-    <div id="status">Iniciando...</div>
+  <main class="container">
+    <header>
+      <div>
+        <h1>Dashboard de Recebimentos</h1>
+        <p>Acompanhamento de parcelas e recebimentos.</p>
+      </div>
+      <button onclick="carregarDados()">Atualizar</button>
+    </header>
 
-    <script>
-        const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
+    <div id="status">Carregando...</div>
 
-        function verificarECarregar() {
-            if (typeof Papa !== 'undefined') {
-                document.getElementById("status").textContent = "Biblioteca carregada. Lendo dados...";
-                Papa.parse(URL_CSV, {
-                    download: true,
-                    header: true,
-                    complete: function(results) {
-                        document.getElementById("status").textContent = "Sucesso! " + results.data.length + " linhas carregadas.";
-                        console.log(results.data);
-                    },
-                    error: function(err) {
-                        document.getElementById("status").textContent = "Erro no CSV: " + err.message;
-                    }
-                });
-            } else {
-                document.getElementById("status").textContent = "Aguardando biblioteca...";
-                setTimeout(verificarECarregar, 500); // Tenta de novo a cada meio segundo
-            }
+    <section class="kpis">
+      <div class="card"><div>Receb. Hoje</div><div class="card-valor" id="kpiRecebimentosHoje">R$ 0,00</div></div>
+      <div class="card"><div>Total a Receber</div><div class="card-valor" id="kpiTotalReceber">R$ 0,00</div></div>
+      <div class="card"><div>Total Recebido</div><div class="card-valor" id="kpiTotalRecebido">R$ 0,00</div></div>
+      <div class="card"><div>Total Aberto</div><div class="card-valor" id="kpiTotalAberto">R$ 0,00</div></div>
+      <div class="card"><div>Total Atrasado</div><div class="card-valor" id="kpiTotalAtrasado">R$ 0,00</div></div>
+    </section>
+
+    <section class="secoes">
+      <div class="secao"><h2>Recebimentos do Dia</h2><table id="tabelaRecebimentosHoje"></table></div>
+      <div class="secao"><h2>Parcelas em Atraso</h2><table id="tabelaAtrasados"></table></div>
+    </section>
+  </main>
+
+  <script>
+    const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
+
+    // Configuração das suas colunas
+    const COLUNAS = {
+      cliente: "Nome do cliente",
+      vencimento: "Data de vencimento",
+      valorOriginal: "Valor original da parcela (R$)",
+      totalRecebido: "Valor total recebido da parcela (R$)",
+      ultimoPagamento: "Data do último pagamento",
+      valorAberto: "Valor da parcela em aberto (R$)"
+    };
+
+    function carregarDados() {
+      if (typeof Papa === 'undefined') {
+        document.getElementById("status").textContent = "Erro: Biblioteca não carregou.";
+        return;
+      }
+      Papa.parse(URL_CSV, {
+        download: true,
+        header: true,
+        complete: function(results) {
+          processarDashboard(results.data);
+        },
+        error: function(err) {
+          document.getElementById("status").textContent = "Erro ao carregar: " + err.message;
         }
+      });
+    }
 
-        verificarECarregar();
-    </script>
+    function processarDashboard(dados) {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      let kpis = { hoje: 0, aReceber: 0, recebido: 0, aberto: 0, atrasado: 0 };
+
+      dados.forEach(linha => {
+        let valOriginal = parseFloat(linha[COLUNAS.valorOriginal]?.replace(',','.') || 0);
+        let valRec = parseFloat(linha[COLUNAS.totalRecebido]?.replace(',','.') || 0);
+        let valAberto = parseFloat(linha[COLUNAS.valorAberto]?.replace(',','.') || (valOriginal - valRec));
+        let dataVenc = new Date(linha[COLUNAS.vencimento]);
+        let dataPag = new Date(linha[COLUNAS.ultimoPagamento]);
+
+        kpis.aReceber += valOriginal;
+        kpis.recebido += valRec;
+        kpis.aberto += valAberto;
+
+        if (dataPag.toDateString() === hoje.toDateString()) kpis.hoje += valRec;
+        if (dataVenc < hoje && valAberto > 0) kpis.atrasado += valAberto;
+      });
+
+      document.getElementById("kpiRecebimentosHoje").textContent = "R$ " + kpis.hoje.toFixed(2);
+      document.getElementById("kpiTotalReceber").textContent = "R$ " + kpis.aReceber.toFixed(2);
+      document.getElementById("kpiTotalRecebido").textContent = "R$ " + kpis.recebido.toFixed(2);
+      document.getElementById("kpiTotalAberto").textContent = "R$ " + kpis.aberto.toFixed(2);
+      document.getElementById("kpiTotalAtrasado").textContent = "R$ " + kpis.atrasado.toFixed(2);
+      document.getElementById("status").textContent = "Dashboard atualizado com sucesso!";
+    }
+
+    carregarDados();
+  </script>
 </body>
 </html>
