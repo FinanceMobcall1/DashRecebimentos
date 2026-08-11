@@ -45,7 +45,6 @@
     const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
     let gd = [];
 
-    // Função de formatação brasileira
     const formatarMoeda = (valor) => "R$ " + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     function carregar() { Papa.parse(URL, { download: true, header: true, complete: res => { gd = res.data; aplicar(); } }); }
@@ -71,11 +70,14 @@
             let pP = l["Data do último pagamento"]?.split('/');
             let dataPag = pP ? `${pP[2]}-${pP[1]}-${pP[0]}` : "";
 
+            // Totais Globais
             k.tot += vO; k.rec += vR; k.abe += vA;
             if (vDate && vDate < hoje && vA > 0.01) k.atr += vA;
 
+            // Filtros e Listagens
             if (l["Nome do cliente"]?.toLowerCase().includes(termo)) {
                 if (dataPag === fData && vR > 0) {
+                    k.dia += vR; 
                     tbodyRec.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data do último pagamento"]}</td><td>${formatarMoeda(vR)}</td></tr>`;
                 }
                 if (vDate && vDate < hoje && vA > 0.01) {
