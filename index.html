@@ -5,8 +5,9 @@
   <title>Recebimentos Mobcall</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    :root { --azul: #2563eb; --cinza: #f8fafc; }
+    :root { --azul: #2563eb; --vermelho: #dc2626; --cinza: #f8fafc; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--cinza); padding: 20px; }
+    h1 { text-align: center; color: var(--azul); }
     .filters { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; }
     .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px; }
     .card { background: white; padding: 15px; border-radius: 12px; border-top: 4px solid var(--azul); }
@@ -28,16 +29,16 @@
   </div>
 
   <div class="kpis">
-    <div class="card">Recebimentos no Dia<div class="card-valor" id="kpiDia">R$ 0,00</div></div>
+    <div class="card">Receb. no Dia<div class="card-valor" id="kpiDia">R$ 0,00</div></div>
     <div class="card">Total a Receber<div class="card-valor" id="kpiTotal">R$ 0,00</div></div>
     <div class="card">Total Recebido<div class="card-valor" id="kpiRecebido">R$ 0,00</div></div>
-    <div class="card">Total Aberto<div class="card-valor" id="kpiAberto">R$ 0,00</div></div>
-    <div class="card">Atrasado<div class="card-valor" id="kpiAtrasado">R$ 0,00</div></div>
+    <div class="card">Total em Aberto<div class="card-valor" id="kpiAberto">R$ 0,00</div></div>
+    <div class="card">Total Atrasado<div class="card-valor" id="kpiAtrasado">R$ 0,00</div></div>
   </div>
 
   <div class="secoes">
     <div class="secao"><h2>Recebimentos Filtrados</h2><table id="tabRecebimentos"><thead><tr><th>Cliente</th><th>Data</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
-    <div class="secao"><h2>Parcelas em Aberto</h2><table id="tabAberto"><thead><tr><th>Cliente</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
+    <div class="secao"><h2>Clientes em Atraso</h2><table id="tabAtraso"><thead><tr><th>Cliente</th><th>Vencimento</th><th>Valor em Atraso</th></tr></thead><tbody></tbody></table></div>
   </div>
 
   <script>
@@ -50,10 +51,11 @@
         const termo = document.getElementById('filtroCliente').value.toLowerCase();
         const fData = document.getElementById('filtroData').value;
         const tbodyRec = document.querySelector("#tabRecebimentos tbody");
-        const tbodyAbe = document.querySelector("#tabAberto tbody");
-        tbodyRec.innerHTML = ""; tbodyAbe.innerHTML = "";
+        const tbodyAtr = document.querySelector("#tabAtraso tbody");
+        tbodyRec.innerHTML = ""; tbodyAtr.innerHTML = "";
 
         let k = { dia: 0, tot: 0, rec: 0, abe: 0, atr: 0 };
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
 
         gd.forEach(l => {
             let vO = parseFloat(l["Valor original da parcela (R$)"]?.replace(/\./g, "").replace(",", ".") || 0);
@@ -61,19 +63,18 @@
             let vA = vO - vR;
             let dP = l["Data do último pagamento"]?.split('/');
             let dataPag = dP ? `${dP[2]}-${dP[1]}-${dP[0]}` : "";
+            let vDate = new Date(l["Data de vencimento"]);
 
-            // Cálculos Globais
             k.tot += vO; k.rec += vR; k.abe += vA;
-            if (new Date(l["Data de vencimento"]) < new Date() && vA > 0) k.atr += vA;
+            if (vDate < hoje && vA > 0) k.atr += vA;
 
-            // Filtros de Linha
             if (l["Nome do cliente"]?.toLowerCase().includes(termo)) {
                 if (dataPag === fData && vR > 0) {
                     k.dia += vR;
                     tbodyRec.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data do último pagamento"]}</td><td>R$ ${vR.toFixed(2).replace('.',',')}</td></tr>`;
                 }
-                if (vA > 0) {
-                    tbodyAbe.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data de vencimento"]}</td><td>R$ ${vA.toFixed(2).replace('.',',')}</td></tr>`;
+                if (vDate < hoje && vA > 0) {
+                    tbodyAtr.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data de vencimento"]}</td><td>R$ ${vA.toFixed(2).replace('.',',')}</td></tr>`;
                 }
             }
         });
