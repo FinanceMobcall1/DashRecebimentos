@@ -3,35 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <title>Dashboard</title>
-    <!-- Linha vital: carrega a biblioteca primeiro -->
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
+    <!-- Usando um link alternativo e garantindo o carregamento -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-    <div id="status">Carregando...</div>
+    <div id="status">Iniciando...</div>
 
     <script>
         const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
 
-        function carregarDados() {
-            if (typeof Papa === 'undefined') {
-                document.getElementById("status").textContent = "Erro: PapaParse não carregou!";
-                return;
+        function verificarECarregar() {
+            if (typeof Papa !== 'undefined') {
+                document.getElementById("status").textContent = "Biblioteca carregada. Lendo dados...";
+                Papa.parse(URL_CSV, {
+                    download: true,
+                    header: true,
+                    complete: function(results) {
+                        document.getElementById("status").textContent = "Sucesso! " + results.data.length + " linhas carregadas.";
+                        console.log(results.data);
+                    },
+                    error: function(err) {
+                        document.getElementById("status").textContent = "Erro no CSV: " + err.message;
+                    }
+                });
+            } else {
+                document.getElementById("status").textContent = "Aguardando biblioteca...";
+                setTimeout(verificarECarregar, 500); // Tenta de novo a cada meio segundo
             }
-
-            Papa.parse(URL_CSV, {
-                download: true,
-                header: true,
-                complete: function(results) {
-                    console.log("Dados carregados:", results.data);
-                    document.getElementById("status").textContent = "Dados carregados com sucesso! (" + results.data.length + " linhas)";
-                },
-                error: function(err) {
-                    document.getElementById("status").textContent = "Erro ao ler CSV: " + err.message;
-                }
-            });
         }
 
-        carregarDados();
+        verificarECarregar();
     </script>
 </body>
 </html>
