@@ -45,6 +45,9 @@
     const URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
     let gd = [];
 
+    // Função de formatação brasileira
+    const formatarMoeda = (valor) => "R$ " + valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     function carregar() { Papa.parse(URL, { download: true, header: true, complete: res => { gd = res.data; aplicar(); } }); }
 
     function aplicar() {
@@ -62,7 +65,6 @@
             let vR = parseFloat(l["Valor total recebido da parcela (R$)"]?.replace(/\./g, "").replace(",", ".") || 0);
             let vA = vO - vR;
 
-            // Conversão robusta de datas
             let pV = l["Data de vencimento"]?.split('/');
             let vDate = pV ? new Date(pV[2], pV[1]-1, pV[0]) : null;
 
@@ -74,20 +76,19 @@
 
             if (l["Nome do cliente"]?.toLowerCase().includes(termo)) {
                 if (dataPag === fData && vR > 0) {
-                    k.dia += vR;
-                    tbodyRec.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data do último pagamento"]}</td><td>R$ ${vR.toFixed(2).replace('.',',')}</td></tr>`;
+                    tbodyRec.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data do último pagamento"]}</td><td>${formatarMoeda(vR)}</td></tr>`;
                 }
                 if (vDate && vDate < hoje && vA > 0.01) {
-                    tbodyAtr.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data de vencimento"]}</td><td>R$ ${vA.toFixed(2).replace('.',',')}</td></tr>`;
+                    tbodyAtr.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data de vencimento"]}</td><td>${formatarMoeda(vA)}</td></tr>`;
                 }
             }
         });
 
-        document.getElementById("kpiDia").textContent = "R$ " + k.dia.toFixed(2).replace('.',',');
-        document.getElementById("kpiTotal").textContent = "R$ " + k.tot.toFixed(2).replace('.',',');
-        document.getElementById("kpiRecebido").textContent = "R$ " + k.rec.toFixed(2).replace('.',',');
-        document.getElementById("kpiAberto").textContent = "R$ " + k.abe.toFixed(2).replace('.',',');
-        document.getElementById("kpiAtrasado").textContent = "R$ " + k.atr.toFixed(2).replace('.',',');
+        document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
+        document.getElementById("kpiTotal").textContent = formatarMoeda(k.tot);
+        document.getElementById("kpiRecebido").textContent = formatarMoeda(k.rec);
+        document.getElementById("kpiAberto").textContent = formatarMoeda(k.abe);
+        document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atr);
     }
     carregar();
   </script>
