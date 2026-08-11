@@ -2,26 +2,29 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard de Recebimentos</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     :root { --azul: #2563eb; --verde: #059669; --laranja: #d97706; --vermelho: #dc2626; --cinza-fundo: #f3f4f6; }
-    body { font-family: Arial; background: var(--cinza-fundo); padding: 20px; }
+    body { font-family: Arial, sans-serif; background: var(--cinza-fundo); padding: 20px; }
     .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
-    .card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid var(--azul); }
+    .card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid var(--azul); font-size: 14px; }
+    .card-valor { font-size: 18px; font-weight: bold; margin-top: 5px; }
     .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .secao { background: white; padding: 15px; border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; }
-    td, th { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    td, th { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background: #f9fafb; }
   </style>
 </head>
 <body>
   <div class="kpis">
-    <div class="card">Receb. Hoje<div id="kpiRecebimentosHoje">R$ 0,00</div></div>
-    <div class="card">Total a Receber<div id="kpiTotalReceber">R$ 0,00</div></div>
-    <div class="card">Total Recebido<div id="kpiTotalRecebido">R$ 0,00</div></div>
-    <div class="card">Total Aberto<div id="kpiTotalAberto">R$ 0,00</div></div>
-    <div class="card">Total Atrasado<div id="kpiTotalAtrasado">R$ 0,00</div></div>
+    <div class="card">Receb. Hoje<div class="card-valor" id="kpiRecebimentosHoje">R$ 0,00</div></div>
+    <div class="card">Total a Receber<div class="card-valor" id="kpiTotalReceber">R$ 0,00</div></div>
+    <div class="card">Total Recebido<div class="card-valor" id="kpiTotalRecebido">R$ 0,00</div></div>
+    <div class="card">Total Aberto<div class="card-valor" id="kpiTotalAberto">R$ 0,00</div></div>
+    <div class="card">Total Atrasado<div class="card-valor" id="kpiTotalAtrasado">R$ 0,00</div></div>
   </div>
 
   <div class="secoes">
@@ -39,39 +42,56 @@
         ultimoPagamento: "Data do último pagamento" 
     };
 
+    function numeroBrasileiro(valor) {
+        if (!valor) return 0;
+        // Remove pontos de milhar, troca vírgula por ponto
+        let texto = String(valor).replace(/\./g, "").replace(",", ".");
+        return parseFloat(texto) || 0;
+    }
+
+    function converterData(valor) {
+        if (!valor) return null;
+        let texto = String(valor).trim().split(' ')[0];
+        if (texto.includes('/')) {
+            let p = texto.split('/');
+            return new Date(p[2], p[1] - 1, p[0]);
+        }
+        return new Date(texto);
+    }
+
     function carregarDados() {
-      Papa.parse(URL_CSV, { download: true, header: true, complete: res => processar(res.data) });
+        Papa.parse(URL_CSV, { download: true, header: true, complete: res => processar(res.data) });
     }
 
     function processar(dados) {
-      const hoje = new Date(); hoje.setHours(0,0,0,0);
-      let kpis = { hoje: 0, aReceber: 0, recebido: 0, aberto: 0, atrasado: 0 };
-      let listaAtraso = [];
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        let kpis = { hoje: 0, aReceber: 0, recebido: 0, aberto: 0, atrasado: 0 };
+        let listaAtraso = "<tr><th>Cliente</th><th>Vencimento</th><th>Valor</th></tr>";
 
-      dados.forEach(l => {
-        let valOrig = parseFloat(l[COLUNAS.valorOriginal]?.replace(',','.') || 0);
-        let valRec = parseFloat(l[COLUNAS.totalRecebido]?.replace(',','.') || 0);
-        let valAberto = valOrig - valRec;
-        let dataVenc = new Date(l[COLUNAS.vencimento]);
-        let dataPag = new Date(l[COLUNAS.ultimoPagamento]);
+        dados.forEach(l => {
+            let valOrig = numeroBrasileiro(l[COLUNAS.valorOriginal]);
+            let valRec = numeroBrasileiro(l[COLUNAS.totalRecebido]);
+            let valAberto = valOrig - valRec;
+            let dataVenc = converterData(l[COLUNAS.vencimento]);
+            let dataPag = converterData(l[COLUNAS.ultimoPagamento]);
 
-        kpis.aReceber += valOrig;
-        kpis.recebido += valRec;
-        kpis.aberto += valAberto;
+            kpis.aReceber += valOrig;
+            kpis.recebido += valRec;
+            kpis.aberto += valAberto;
 
-        if (dataPag.toDateString() === hoje.toDateString()) kpis.hoje += valRec;
-        if (dataVenc < hoje && valAberto > 0) {
-            kpis.atrasado += valAberto;
-            listaAtraso.push(`<tr><td>${l[COLUNAS.cliente]}</td><td>${l[COLUNAS.vencimento]}</td><td>R$ ${valAberto.toFixed(2)}</td></tr>`);
-        }
-      });
+            if (dataPag?.toDateString() === hoje.toDateString()) kpis.hoje += valRec;
+            if (dataVenc && dataVenc < hoje && valAberto > 0) {
+                kpis.atrasado += valAberto;
+                listaAtraso += `<tr><td>${l[COLUNAS.cliente]}</td><td>${l[COLUNAS.vencimento]}</td><td>R$ ${valAberto.toFixed(2).replace('.',',')}</td></tr>`;
+            }
+        });
 
-      document.getElementById("kpiRecebimentosHoje").textContent = "R$ " + kpis.hoje.toFixed(2);
-      document.getElementById("kpiTotalReceber").textContent = "R$ " + kpis.aReceber.toFixed(2);
-      document.getElementById("kpiTotalRecebido").textContent = "R$ " + kpis.recebido.toFixed(2);
-      document.getElementById("kpiTotalAberto").textContent = "R$ " + kpis.aberto.toFixed(2);
-      document.getElementById("kpiTotalAtrasado").textContent = "R$ " + kpis.atrasado.toFixed(2);
-      document.getElementById("tabelaAtrasados").innerHTML = listaAtraso.join('');
+        document.getElementById("kpiRecebimentosHoje").textContent = "R$ " + kpis.hoje.toFixed(2).replace('.',',');
+        document.getElementById("kpiTotalReceber").textContent = "R$ " + kpis.aReceber.toFixed(2).replace('.',',');
+        document.getElementById("kpiTotalRecebido").textContent = "R$ " + kpis.recebido.toFixed(2).replace('.',',');
+        document.getElementById("kpiTotalAberto").textContent = "R$ " + kpis.aberto.toFixed(2).replace('.',',');
+        document.getElementById("kpiTotalAtrasado").textContent = "R$ " + kpis.atrasado.toFixed(2).replace('.',',');
+        document.getElementById("tabelaAtrasados").innerHTML = listaAtraso;
     }
     carregarDados();
   </script>
