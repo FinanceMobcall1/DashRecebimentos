@@ -5,13 +5,20 @@
   <title>Recebimentos Mobcall</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    :root { --azul: #2563eb; --vermelho: #dc2626; --cinza: #f8fafc; }
+    :root { --azul: #2563eb; --vermelho: #dc2626; --verde: #059669; --cinza: #f8fafc; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--cinza); padding: 20px; }
     h1 { text-align: center; color: var(--azul); }
     .filters { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; }
-    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px; }
-    .card { background: white; padding: 15px; border-radius: 12px; border-top: 4px solid var(--azul); }
-    .card-valor { font-size: 1.1rem; font-weight: 700; color: var(--azul); }
+
+    /* Layout dos KPIs ajustado para 3 colunas */
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px #00000005; border-top: 4px solid var(--azul); }
+
+    .card-valor { font-size: 1.4rem; font-weight: 700; margin-top: 5px; }
+    .verde { color: var(--verde); border-color: var(--verde) !important; }
+    .azul { color: var(--azul); border-color: var(--azul) !important; }
+    .vermelho { color: var(--vermelho); border-color: var(--vermelho) !important; }
+
     .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .secao { background: white; padding: 20px; border-radius: 12px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
@@ -29,11 +36,9 @@
   </div>
 
   <div class="kpis">
-    <div class="card">Receb. no Dia<div class="card-valor" id="kpiDia">R$ 0,00</div></div>
-    <div class="card">Total a Receber<div class="card-valor" id="kpiTotal">R$ 0,00</div></div>
-    <div class="card">Total Recebido<div class="card-valor" id="kpiRecebido">R$ 0,00</div></div>
-    <div class="card">Total em Aberto<div class="card-valor" id="kpiAberto">R$ 0,00</div></div>
-    <div class="card">Total Atrasado<div class="card-valor" id="kpiAtrasado">R$ 0,00</div></div>
+    <div class="card verde">Recebimentos do dia<div class="card-valor" id="kpiDia">R$ 0,00</div></div>
+    <div class="card azul">Total a receber<div class="card-valor" id="kpiAberto">R$ 0,00</div></div>
+    <div class="card vermelho">Total atrasado<div class="card-valor" id="kpiAtrasado">R$ 0,00</div></div>
   </div>
 
   <div class="secoes">
@@ -56,7 +61,7 @@
         const tbodyAtr = document.querySelector("#tabAtraso tbody");
         tbodyRec.innerHTML = ""; tbodyAtr.innerHTML = "";
 
-        let k = { dia: 0, tot: 0, rec: 0, abe: 0, atr: 0 };
+        let k = { dia: 0, abe: 0, atr: 0 };
         const hoje = new Date(); hoje.setHours(0,0,0,0);
 
         gd.forEach(l => {
@@ -66,18 +71,17 @@
 
             let pV = l["Data de vencimento"]?.split('/');
             let vDate = pV ? new Date(pV[2], pV[1]-1, pV[0]) : null;
-
             let pP = l["Data do último pagamento"]?.split('/');
             let dataPag = pP ? `${pP[2]}-${pP[1]}-${pP[0]}` : "";
 
-            // Totais Globais
-            k.tot += vO; k.rec += vR; k.abe += vA;
+            // Lógica KPIs: Considerando valores em aberto e atrasados
+            if (vA > 0) k.abe += vA;
             if (vDate && vDate < hoje && vA > 0.01) k.atr += vA;
 
-            // Filtros e Listagens
+            // Filtros de Linha
             if (l["Nome do cliente"]?.toLowerCase().includes(termo)) {
                 if (dataPag === fData && vR > 0) {
-                    k.dia += vR; 
+                    k.dia += vR;
                     tbodyRec.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data do último pagamento"]}</td><td>${formatarMoeda(vR)}</td></tr>`;
                 }
                 if (vDate && vDate < hoje && vA > 0.01) {
@@ -87,8 +91,6 @@
         });
 
         document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
-        document.getElementById("kpiTotal").textContent = formatarMoeda(k.tot);
-        document.getElementById("kpiRecebido").textContent = formatarMoeda(k.rec);
         document.getElementById("kpiAberto").textContent = formatarMoeda(k.abe);
         document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atr);
     }
