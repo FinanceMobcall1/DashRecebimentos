@@ -2,96 +2,76 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard de Recebimentos</title>
+  <title>Dashboard Financeiro</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
-    :root { --azul: #2563eb; --verde: #059669; --laranja: #d97706; --vermelho: #dc2626; --cinza-fundo: #f3f4f6; }
-    body { font-family: Arial, sans-serif; background: var(--cinza-fundo); padding: 20px; }
-    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
-    .card { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid var(--azul); font-size: 14px; }
-    .card-valor { font-size: 18px; font-weight: bold; margin-top: 5px; }
-    .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .secao { background: white; padding: 15px; border-radius: 8px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    td, th { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-    th { background: #f9fafb; }
+    :root { --azul-claro: #eff6ff; --azul: #2563eb; --cinza: #f8fafc; }
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--cinza); padding: 20px; color: #1e293b; }
+    .filters { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 10px; box-shadow: 0 4px 6px -1px #00000010; }
+    input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; flex: 1; }
+    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px; }
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px #00000010; border-top: 4px solid var(--azul); }
+    .card-valor { font-size: 1.25rem; font-weight: 700; margin-top: 5px; color: var(--azul); }
+    .secao { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px #00000010; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { background: var(--azul-claro); padding: 12px; text-align: left; }
+    td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
   </style>
 </head>
 <body>
-  <div class="kpis">
-    <div class="card">Receb. Hoje<div class="card-valor" id="kpiRecebimentosHoje">R$ 0,00</div></div>
-    <div class="card">Total a Receber<div class="card-valor" id="kpiTotalReceber">R$ 0,00</div></div>
-    <div class="card">Total Recebido<div class="card-valor" id="kpiTotalRecebido">R$ 0,00</div></div>
-    <div class="card">Total Aberto<div class="card-valor" id="kpiTotalAberto">R$ 0,00</div></div>
-    <div class="card">Total Atrasado<div class="card-valor" id="kpiTotalAtrasado">R$ 0,00</div></div>
+
+  <div class="filters">
+    <input type="text" id="filtroCliente" placeholder="Filtrar por nome do cliente..." onkeyup="filtrarDados()">
   </div>
 
-  <div class="secoes">
-    <div class="secao"><h2>Recebimentos do Dia</h2><table id="tabelaRecebimentosHoje"></table></div>
-    <div class="secao"><h2>Parcelas em Atraso</h2><table id="tabelaAtrasados"></table></div>
+  <div class="kpis">
+    <div class="card">Receb. Hoje<div class="card-valor" id="kpiRecebimentosHoje">R$ 0,00</div></div>
+    <div class="card">A Receber<div class="card-valor" id="kpiTotalReceber">R$ 0,00</div></div>
+    <div class="card">Total Recebido<div class="card-valor" id="kpiTotalRecebido">R$ 0,00</div></div>
+    <div class="card">Total Aberto<div class="card-valor" id="kpiTotalAberto">R$ 0,00</div></div>
+    <div class="card">Atrasado<div class="card-valor" id="kpiTotalAtrasado">R$ 0,00</div></div>
+  </div>
+
+  <div class="secao">
+    <h2>Parcelas em Atraso</h2>
+    <table id="tabelaAtrasados"><thead><tr><th>Cliente</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody></tbody></table>
   </div>
 
   <script>
     const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
-    const COLUNAS = { 
-        cliente: "Nome do cliente", 
-        vencimento: "Data de vencimento", 
-        valorOriginal: "Valor original da parcela (R$)", 
-        totalRecebido: "Valor total recebido da parcela (R$)", 
-        ultimoPagamento: "Data do último pagamento" 
-    };
-
-    function numeroBrasileiro(valor) {
-        if (!valor) return 0;
-        // Remove pontos de milhar, troca vírgula por ponto
-        let texto = String(valor).replace(/\./g, "").replace(",", ".");
-        return parseFloat(texto) || 0;
-    }
-
-    function converterData(valor) {
-        if (!valor) return null;
-        let texto = String(valor).trim().split(' ')[0];
-        if (texto.includes('/')) {
-            let p = texto.split('/');
-            return new Date(p[2], p[1] - 1, p[0]);
-        }
-        return new Date(texto);
-    }
+    let dadosGlobais = [];
 
     function carregarDados() {
-        Papa.parse(URL_CSV, { download: true, header: true, complete: res => processar(res.data) });
+        Papa.parse(URL_CSV, { download: true, header: true, complete: res => { dadosGlobais = res.data; processar(dadosGlobais); } });
+    }
+
+    function filtrarDados() {
+        const termo = document.getElementById('filtroCliente').value.toLowerCase();
+        const filtrados = dadosGlobais.filter(l => l["Nome do cliente"]?.toLowerCase().includes(termo));
+        processar(filtrados);
     }
 
     function processar(dados) {
-        const hoje = new Date(); hoje.setHours(0,0,0,0);
         let kpis = { hoje: 0, aReceber: 0, recebido: 0, aberto: 0, atrasado: 0 };
-        let listaAtraso = "<tr><th>Cliente</th><th>Vencimento</th><th>Valor</th></tr>";
+        let tbody = document.querySelector("#tabelaAtrasados tbody"); tbody.innerHTML = "";
 
         dados.forEach(l => {
-            let valOrig = numeroBrasileiro(l[COLUNAS.valorOriginal]);
-            let valRec = numeroBrasileiro(l[COLUNAS.totalRecebido]);
+            let valOrig = parseFloat(l["Valor original da parcela (R$)"]?.replace(/\./g, "").replace(",", ".") || 0);
+            let valRec = parseFloat(l["Valor total recebido da parcela (R$)"]?.replace(/\./g, "").replace(",", ".") || 0);
             let valAberto = valOrig - valRec;
-            let dataVenc = converterData(l[COLUNAS.vencimento]);
-            let dataPag = converterData(l[COLUNAS.ultimoPagamento]);
 
-            kpis.aReceber += valOrig;
-            kpis.recebido += valRec;
-            kpis.aberto += valAberto;
+            kpis.aReceber += valOrig; kpis.recebido += valRec; kpis.aberto += valAberto;
 
-            if (dataPag?.toDateString() === hoje.toDateString()) kpis.hoje += valRec;
-            if (dataVenc && dataVenc < hoje && valAberto > 0) {
+            if (valAberto > 0 && new Date(l["Data de vencimento"]) < new Date()) {
                 kpis.atrasado += valAberto;
-                listaAtraso += `<tr><td>${l[COLUNAS.cliente]}</td><td>${l[COLUNAS.vencimento]}</td><td>R$ ${valAberto.toFixed(2).replace('.',',')}</td></tr>`;
+                tbody.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data de vencimento"]}</td><td>R$ ${valAberto.toFixed(2).replace('.',',')}</td></tr>`;
             }
         });
 
-        document.getElementById("kpiRecebimentosHoje").textContent = "R$ " + kpis.hoje.toFixed(2).replace('.',',');
         document.getElementById("kpiTotalReceber").textContent = "R$ " + kpis.aReceber.toFixed(2).replace('.',',');
         document.getElementById("kpiTotalRecebido").textContent = "R$ " + kpis.recebido.toFixed(2).replace('.',',');
         document.getElementById("kpiTotalAberto").textContent = "R$ " + kpis.aberto.toFixed(2).replace('.',',');
         document.getElementById("kpiTotalAtrasado").textContent = "R$ " + kpis.atrasado.toFixed(2).replace('.',',');
-        document.getElementById("tabelaAtrasados").innerHTML = listaAtraso;
     }
     carregarDados();
   </script>
