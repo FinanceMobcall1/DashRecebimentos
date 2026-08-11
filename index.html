@@ -2,85 +2,30 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard de Recebimentos</title>
+  <title>Dashboard</title>
+  <!-- 1. Primeiro a biblioteca precisa carregar aqui -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.3/papaparse.min.js"></script>
-  <style>
-    :root { --azul: #2563eb; --azul-escuro: #1e3a8a; --verde: #059669; --laranja: #d97706; --vermelho: #dc2626; --cinza-fundo: #f3f4f6; --cinza-texto: #6b7280; --borda: #e5e7eb; --branco: #ffffff; }
-    body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: var(--cinza-fundo); }
-    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 26px; }
-    .card { background: var(--branco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid var(--azul); }
-    .card-valor { font-size: 24px; font-weight: bold; }
-    .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .secao { background: var(--branco); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 12px; background: #f9fafb; font-size: 12px; }
-    td { padding: 12px; border-bottom: 1px solid var(--borda); }
-  </style>
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>Dashboard de Recebimentos</h1>
-      <button onclick="carregarDados()">Atualizar dados</button>
-    </header>
-    <div id="status">Carregando dados...</div>
-    <section class="kpis">
-      <div class="card"><div>Recebimentos do dia</div><div class="card-valor" id="kpiRecebimentosHoje">R$ 0,00</div></div>
-      <div class="card"><div>Total a receber</div><div class="card-valor" id="kpiTotalReceber">R$ 0,00</div></div>
-      <div class="card"><div>Total recebido</div><div class="card-valor" id="kpiTotalRecebido">R$ 0,00</div></div>
-      <div class="card"><div>Total em aberto</div><div class="card-valor" id="kpiTotalAberto">R$ 0,00</div></div>
-      <div class="card"><div>Total atrasado</div><div class="card-valor" id="kpiTotalAtrasado">R$ 0,00</div></div>
-    </section>
-    <section class="secoes">
-      <div class="secao"><h2>Recebimentos do dia</h2><table id="tabelaRecebimentosHoje"></table></div>
-      <div class="secao"><h2>Parcelas em atraso</h2><table id="tabelaAtrasados"></table></div>
-    </section>
-  </main>
-  <script>
-    const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
-    const COLUNAS = { cliente: "Nome do cliente", vencimento: "Data de vencimento", situacao: "Situação", valorOriginal: "Valor original da parcela (R$)", valorRecebido: "Valor recebido da parcela (R$)", juros: "Juros realizado (R$)", multa: "Multa realizado (R$)", desconto: "Desconto realizado (R$)", totalRecebido: "Valor total recebido da parcela (R$)", valorAberto: "Valor da parcela em aberto (R$)", ultimoPagamento: "Data do último pagamento" };
+  <div id="status">Carregando...</div>
 
-    function converterData(valor) {
-        if (!valor) return null;
-        let texto = String(valor).trim().split(' ')[0].split('T')[0];
-        let data;
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
-            let p = texto.split('/');
-            data = new Date(p[2], p[1] - 1, p[0]);
-        } else if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
-            let p = texto.split('-');
-            data = new Date(p[0], p[1] - 1, p[2]);
-        } else {
-            data = new Date(texto);
-        }
-        return isNaN(data.getTime()) ? null : data;
-    }
+  <script>
+    // 2. Agora o seu script pode rodar, pois a constante "Papa" já existe
+    const URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
 
     function carregarDados() {
-        Papa.parse(URL_CSV, { download: true, header: true, complete: (res) => processarDados(res.data) });
-    }
-
-    function processarDados(linhas) {
-        const hoje = new Date(); hoje.setHours(0,0,0,0);
-        let kpis = { recebidoHoje: 0, totalReceber: 0, totalRecebido: 0, totalAberto: 0, totalAtrasado: 0 };
-        linhas.forEach(l => {
-            let v = parseFloat(l[COLUNAS.valorOriginal]?.replace(',','.') || 0);
-            let rec = parseFloat(l[COLUNAS.totalRecebido]?.replace(',','.') || 0);
-            kpis.totalReceber += v;
-            kpis.totalRecebido += rec;
-            kpis.totalAberto += (v - rec);
-            if (converterData(l[COLUNAS.ultimoPagamento])?.toDateString() === hoje.toDateString()) kpis.recebidoHoje += rec;
-            if (converterData(l[COLUNAS.vencimento]) < hoje && (v - rec) > 0) kpis.totalAtrasado += (v - rec);
+        if (typeof Papa === 'undefined') {
+            console.error("PapaParse não foi carregado!");
+            return;
+        }
+        Papa.parse(URL_CSV, {
+            download: true,
+            header: true,
+            complete: function(results) {
+                console.log("Dados ok:", results.data);
+                document.getElementById("status").textContent = "Carregado!";
+            }
         });
-        document.getElementById("kpiRecebimentosHoje").textContent = "R$ " + kpis.recebidoHoje.toFixed(2);
-        document.getElementById("kpiTotalReceber").textContent = "R$ " + kpis.totalReceber.toFixed(2);
-        document.getElementById("kpiTotalRecebido").textContent = "R$ " + kpis.totalRecebido.toFixed(2);
-        document.getElementById("kpiTotalAberto").textContent = "R$ " + kpis.totalAberto.toFixed(2);
-        document.getElementById("kpiTotalAtrasado").textContent = "R$ " + kpis.totalAtrasado.toFixed(2);
-        document.getElementById("status").textContent = "Dados atualizados!";
     }
     carregarDados();
   </script>
