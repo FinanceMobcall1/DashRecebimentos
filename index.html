@@ -61,19 +61,23 @@
             let vO = parseFloat(l["Valor original da parcela (R$)"]?.replace(/\./g, "").replace(",", ".") || 0);
             let vR = parseFloat(l["Valor total recebido da parcela (R$)"]?.replace(/\./g, "").replace(",", ".") || 0);
             let vA = vO - vR;
-            let dP = l["Data do último pagamento"]?.split('/');
-            let dataPag = dP ? `${dP[2]}-${dP[1]}-${dP[0]}` : "";
-            let vDate = new Date(l["Data de vencimento"]);
+
+            // Conversão robusta de datas
+            let pV = l["Data de vencimento"]?.split('/');
+            let vDate = pV ? new Date(pV[2], pV[1]-1, pV[0]) : null;
+
+            let pP = l["Data do último pagamento"]?.split('/');
+            let dataPag = pP ? `${pP[2]}-${pP[1]}-${pP[0]}` : "";
 
             k.tot += vO; k.rec += vR; k.abe += vA;
-            if (vDate < hoje && vA > 0) k.atr += vA;
+            if (vDate && vDate < hoje && vA > 0.01) k.atr += vA;
 
             if (l["Nome do cliente"]?.toLowerCase().includes(termo)) {
                 if (dataPag === fData && vR > 0) {
                     k.dia += vR;
                     tbodyRec.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data do último pagamento"]}</td><td>R$ ${vR.toFixed(2).replace('.',',')}</td></tr>`;
                 }
-                if (vDate < hoje && vA > 0) {
+                if (vDate && vDate < hoje && vA > 0.01) {
                     tbodyAtr.innerHTML += `<tr><td>${l["Nome do cliente"]}</td><td>${l["Data de vencimento"]}</td><td>R$ ${vA.toFixed(2).replace('.',',')}</td></tr>`;
                 }
             }
