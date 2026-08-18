@@ -13,10 +13,13 @@
     .logo-container img { max-width: 220px; height: auto; }
     h1 { font-size: 1.8rem; color: white; margin: 0; }
     .filters { background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: center; margin-bottom: 30px; }
-    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 40px; }
+
+    /* Layout dos KPIs ajustado para 2 colunas */
+    .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 40px; max-width: 800px; margin-left: auto; margin-right: auto; }
     .card { background: var(--card-bg); padding: 24px; border-radius: 20px; border: 1px solid var(--border); }
     .card-title { color: var(--text-muted); text-transform: uppercase; font-size: 0.85rem; }
     .card-valor { font-size: 1.8rem; font-weight: 700; margin-top: 8px; }
+
     .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     .secao { background: var(--card-bg); padding: 24px; border-radius: 20px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: collapse; }
@@ -37,22 +40,21 @@
   </div>
 
   <div class="kpis">
-    <div class="card"><div class="card-title">Receb. do Dia</div><div class="card-valor" id="kpiDia" style="color: var(--green);">R$ 0,00</div></div>
-    <div class="card"><div class="card-title">Total a Receber</div><div class="card-valor" id="kpiTotal" style="color: var(--primary);">R$ 0,00</div></div>
+    <div class="card"><div class="card-title">Recebimentos do dia</div><div class="card-valor" id="kpiDia" style="color: var(--green);">R$ 0,00</div></div>
     <div class="card"><div class="card-title">Total Atrasado</div><div class="card-valor" id="kpiAtrasado" style="color: var(--red);">R$ 0,00</div></div>
   </div>
 
   <div class="secoes">
     <div class="secao"><h2>Recebimentos Filtrados</h2><table id="tabRecebimentos"><thead><tr><th>Cliente</th><th>Data</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
-    <div class="secao"><h2>Clientes em Atraso</h2><table id="tabAtrasos"><thead><tr><th>Cliente</th><th>Vencim.</th><th>Status</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
+    <div class="secao"><h2>Clientes em Atraso</h2><table id="tabAtrasos"><thead><tr><th>Cliente</th><th>Vencim.</th><th>Status</th><th>Obs.</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
   </div>
 
   <script>
-    const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
-    const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=420641834&single=true&output=csv";
+    const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=0&single=true";
+    const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=420641834&single=true";
     let dadosRec = [], dadosAtr = [];
 
-    const formatarMoeda = (v) => "R$ " + parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const formatarMoeda = (v) => "R$ " + (parseFloat(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
     function carregar() {
       Papa.parse(URL_REC, { download: true, header: true, complete: res => { dadosRec = res.data; verificarCarregamento(); } });
@@ -67,30 +69,26 @@
       const tAtr = document.querySelector("#tabAtrasos tbody");
       tRec.innerHTML = ""; tAtr.innerHTML = "";
 
-      let k = { dia: 0, total: 0, atraso: 0 };
+      let k = { dia: 0, atraso: 0 };
 
-      // Processar Recebimentos
       dadosRec.forEach(l => {
         let vR = parseFloat(l[" Valor recebido "]?.replace(/\./g, "").replace(",", ".") || 0);
         let dataP = l["Data de recebimento"]?.split('/');
         let dataPagFormat = dataP ? `${dataP[2]}-${dataP[1]}-${dataP[0]}` : "";
-
-        k.total += parseFloat(l["Valor original"]?.replace(/\./g, "").replace(",", ".") || 0);
         if(dataPagFormat === fData) {
           k.dia += vR;
           tRec.innerHTML += `<tr><td>${l["Cliente"]}</td><td>${l["Data de recebimento"]}</td><td>${formatarMoeda(vR)}</td></tr>`;
         }
       });
 
-      // Processar Atrasos
       dadosAtr.forEach(l => {
         let vA = parseFloat(l["Valor original"]?.replace(/\./g, "").replace(",", ".") || 0);
         k.atraso += vA;
-        tAtr.innerHTML += `<tr><td>${l["Cliente"]}</td><td>${l["Data de vencimento"]}</td><td>${l["Status"]}</td><td>${formatarMoeda(vA)}</td></tr>`;
+        // Adicionada coluna Observação
+        tAtr.innerHTML += `<tr><td>${l["Cliente"]}</td><td>${l["Data de vencimento"]}</td><td>${l["Status"]}</td><td>${l["Observação"] || "-"}</td><td>${formatarMoeda(vA)}</td></tr>`;
       });
 
       document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
-      document.getElementById("kpiTotal").textContent = formatarMoeda(k.total);
       document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atraso);
     }
     carregar();
