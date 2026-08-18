@@ -13,10 +13,10 @@
     .logo-container img { max-width: 220px; height: auto; }
     h1 { font-size: 1.8rem; color: white; margin: 0; }
     .filters { background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: center; margin-bottom: 30px; }
-    .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 40px; max-width: 800px; margin-left: auto; margin-right: auto; }
-    .card { background: var(--card-bg); padding: 24px; border-radius: 20px; border: 1px solid var(--border); }
-    .card-title { color: var(--text-muted); text-transform: uppercase; font-size: 0.85rem; }
-    .card-valor { font-size: 1.8rem; font-weight: 700; margin-top: 8px; }
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 40px; max-width: 1000px; margin-left: auto; margin-right: auto; }
+    .card { background: var(--card-bg); padding: 24px; border-radius: 20px; border: 1px solid var(--border); text-align: center; }
+    .card-title { color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
+    .card-valor { font-size: 1.5rem; font-weight: 700; margin-top: 8px; }
     .secoes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
     .secao { background: var(--card-bg); padding: 24px; border-radius: 20px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: collapse; }
@@ -25,8 +25,9 @@
   </style>
 </head>
 <body>
+
   <div class="header">
-    <div class="logo-container"><img src="https://github.com/FinanceMobcall1/DashRecebimentos/blob/main/Mobacall_logos%202026-02.png?raw=true" alt="Mobcall"></div>
+    <div class="logo-container"><img src="LINK_DA_SUA_LOGO" alt="Logo"></div>
     <h1>Recebimentos Mobcall</h1>
   </div>
 
@@ -38,6 +39,7 @@
   <div class="kpis">
     <div class="card"><div class="card-title">Recebimentos do dia</div><div class="card-valor" id="kpiDia" style="color: var(--green);">R$ 0,00</div></div>
     <div class="card"><div class="card-title">Total Atrasado</div><div class="card-valor" id="kpiAtrasado" style="color: var(--red);">R$ 0,00</div></div>
+    <div class="card"><div class="card-title">Total a Receber</div><div class="card-valor" id="kpiAReceber" style="color: var(--primary);">R$ 0,00</div></div>
   </div>
 
   <div class="secoes">
@@ -48,41 +50,56 @@
   <script>
     const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=0&single=true&output=csv";
     const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=420641834&single=true&output=csv";
-    let dadosRec = [], dadosAtr = [];
+    const URL_ARECEBER = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pub?gid=1120474871&single=true&output=csv";
+    let dadosRec = [], dadosAtr = [], dadosAReceber = [];
+
+    const formatarMoeda = (v) => "R$ " + parseFloat(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+    function carregar() {
+      Papa.parse(URL_REC, { download: true, header: false, skipEmptyLines: true, complete: r => { dadosRec = r.data.slice(1);
+        Papa.parse(URL_ATR, { download: true, header: false, skipEmptyLines: true, complete: r2 => { dadosAtr = r2.data.slice(1);
+          Papa.parse(URL_ARECEBER, { download: true, header: false, skipEmptyLines: true, complete: r3 => { dadosAReceber = r3.data.slice(1);
+            let ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
+            document.getElementById('filtroData').value = ontem.toISOString().split('T')[0];
+            processarDados();
+          }});
+        }});
+      }});
+    }
 
     function processarDados() {
         const fData = document.getElementById('filtroData').value;
         const tRec = document.querySelector("#tabRec tbody");
         const tAtr = document.querySelector("#tabAtr tbody");
         tRec.innerHTML = ""; tAtr.innerHTML = "";
-        let k = { dia: 0, atraso: 0 };
+        let k = { dia: 0, atraso: 0, aReceber: 0 };
 
         dadosRec.forEach(l => {
             let valor = parseFloat(l[5]?.replace(/\./g, "").replace(",", ".")) || 0;
-            let dRaw = l[9]; 
+            let dRaw = l[9];
             let p = dRaw?.split('/');
             if(p && p.length === 3 && `${p[2]}-${p[1]}-${p[0]}` === fData) {
                 k.dia += valor;
-                tRec.innerHTML += `<tr><td>${l[4]}</td><td>${l[8]}</td><td>${dRaw}</td><td>R$ ${parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`;
+                tRec.innerHTML += `<tr><td>${l[4]}</td><td>${l[8]}</td><td>${dRaw}</td><td>${formatarMoeda(valor)}</td></tr>`;
             }
         });
 
         dadosAtr.forEach(l => {
             let valor = parseFloat(l[4]?.replace(/\./g, "").replace(",", ".")) || 0;
             k.atraso += valor;
-            tAtr.innerHTML += `<tr><td>${l[2]}</td><td>${l[1]}</td><td>${l[5]}</td><td>${l[7] || "-"}</td><td>R$ ${parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`;
+            tAtr.innerHTML += `<tr><td>${l[2]}</td><td>${l[1]}</td><td>${l[5]}</td><td>${l[7] || "-"}</td><td>${formatarMoeda(valor)}</td></tr>`;
         });
-       document.getElementById("kpiDia").textContent = "R$ " + k.dia.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-document.getElementById("kpiAtrasado").textContent = "R$ " + k.atraso.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    }
 
-    Papa.parse(URL_REC, { download: true, header: false, skipEmptyLines: true, complete: r => { dadosRec = r.data.slice(1);
-        Papa.parse(URL_ATR, { download: true, header: false, skipEmptyLines: true, complete: r2 => { dadosAtr = r2.data.slice(1);
-            let ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
-            document.getElementById('filtroData').value = ontem.toISOString().split('T')[0];
-            processarDados();
-        }});
-    }});
+        dadosAReceber.forEach(l => {
+            let valor = parseFloat(l[2]?.replace(/\./g, "").replace(",", ".")) || 0;
+            k.aReceber += valor;
+        });
+
+        document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
+        document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atraso);
+        document.getElementById("kpiAReceber").textContent = formatarMoeda(k.aReceber);
+    }
+    carregar();
   </script>
 </body>
 </html>
