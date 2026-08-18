@@ -63,17 +63,17 @@
             let p = dRaw?.split('/');
             if(p && p.length === 3 && `${p[2]}-${p[1]}-${p[0]}` === fData) {
                 k.dia += valor;
-                tRec.innerHTML += `<tr><td>${l[4]}</td><td>${l[8]}</td><td>${dRaw}</td><td>R$ ${valor.toFixed(2)}</td></tr>`;
+                tRec.innerHTML += `<tr><td>${l[4]}</td><td>${l[8]}</td><td>${dRaw}</td><td>R$ ${parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`;
             }
         });
 
         dadosAtr.forEach(l => {
             let valor = parseFloat(l[4]?.replace(/\./g, "").replace(",", ".")) || 0;
             k.atraso += valor;
-            tAtr.innerHTML += `<tr><td>${l[2]}</td><td>${l[1]}</td><td>${l[5]}</td><td>${l[7] || "-"}</td><td>R$ ${valor.toFixed(2)}</td></tr>`;
+            tAtr.innerHTML += `<tr><td>${l[2]}</td><td>${l[1]}</td><td>${l[5]}</td><td>${l[7] || "-"}</td><td>R$ ${parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td></tr>`;
         });
-        document.getElementById("kpiDia").textContent = "R$ " + k.dia.toFixed(2);
-        document.getElementById("kpiAtrasado").textContent = "R$ " + k.atraso.toFixed(2);
+       document.getElementById("kpiDia").textContent = "R$ " + k.dia.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+document.getElementById("kpiAtrasado").textContent = "R$ " + k.atraso.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
     }
 
     Papa.parse(URL_REC, { download: true, header: false, skipEmptyLines: true, complete: r => { dadosRec = r.data.slice(1);
