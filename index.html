@@ -25,44 +25,37 @@
   </style>
 </head>
 <body>
-
   <div class="header">
     <div class="logo-container"><img src="https://github.com/FinanceMobcall1/DashRecebimentos/blob/main/Mobacall_logos%202026-02.png?raw=true" alt="Logo"></div>
     <h1>Recebimentos Mobcall</h1>
   </div>
-
   <div class="filters">
     <label>Selecione a data para filtrar:</label>
     <input type="date" id="filtroData" onchange="processarDados()">
   </div>
-
   <div class="kpis">
     <div class="card"><div class="card-title">Recebimentos do dia</div><div class="card-valor" id="kpiDia" style="color: var(--green);">R$ 0,00</div></div>
     <div class="card"><div class="card-title">Total Atrasado</div><div class="card-valor" id="kpiAtrasado" style="color: var(--red);">R$ 0,00</div></div>
   </div>
-
   <div class="secoes">
     <div class="secao"><h2>Recebimentos Filtrados</h2><table id="tabRecebimentos"><thead><tr><th>Cliente</th><th>OS</th><th>Data</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
     <div class="secao"><h2>Clientes em Atraso</h2><table id="tabAtrasos"><thead><tr><th>Cliente</th><th>Vencim.</th><th>Status</th><th>Obs.</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
   </div>
-
   <script>
     const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=0&single=true";
     const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=420641834&single=true";
     let dadosRec = [], dadosAtr = [];
 
     const formatarMoeda = (v) => "R$ " + (parseFloat(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    const getVal = (obj, key) => obj[Object.keys(obj).find(k => k.trim().toLowerCase() === key.trim().toLowerCase())];
 
     function carregar() {
-      Papa.parse(URL_REC, { download: true, header: true, complete: res => { dadosRec = res.data; verificarCarregamento(); } });
-      Papa.parse(URL_ATR, { download: true, header: true, complete: res => { dadosAtr = res.data; verificarCarregamento(); } });
+      Papa.parse(URL_REC, { download: true, header: false, skipEmptyLines: true, complete: res => { dadosRec = res.data.slice(1); verificarCarregamento(); } });
+      Papa.parse(URL_ATR, { download: true, header: false, skipEmptyLines: true, complete: res => { dadosAtr = res.data.slice(1); verificarCarregamento(); } });
     }
 
     function verificarCarregamento() {
       if(dadosRec.length > 0 && dadosAtr.length > 0) {
-        let ontem = new Date();
-        ontem.setDate(ontem.getDate() - 1);
+        let ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
         document.getElementById('filtroData').value = ontem.toISOString().split('T')[0];
         processarDados();
       }
@@ -75,24 +68,23 @@
       tRec.innerHTML = ""; tAtr.innerHTML = "";
       let k = { dia: 0, atraso: 0 };
 
-      dadosRec.forEach(l => {
-        let vR = parseFloat(getVal(l, "Valor recebido")?.replace(/\./g, "").replace(",", ".") || 0);
-        let rawDate = getVal(l, "Data de recebimento");
-        let p = rawDate?.split('/');
-        let dataPagFormat = p ? `${p[2]}-${p[1]}-${p[0]}` : "";
-
-        if(dataPagFormat === fData) {
-          k.dia += vR;
-          tRec.innerHTML += `<tr><td>${getVal(l, "Cliente")}</td><td>${getVal(l, "OS")}</td><td>${rawDate}</td><td>${formatarMoeda(vR)}</td></tr>`;
+      // Índices Recebimentos: 4=Cliente, 5=Valor, 8=OS, 9=DataRec
+      dadosRec.forEach(linha => {
+        let valor = parseFloat(linha[5]?.replace(/\./g, "").replace(",", ".")) || 0;
+        let dataRaw = linha[9]; 
+        let p = dataRaw?.split('/');
+        if (p && p.length === 3 && `${p[2]}-${p[1]}-${p[0]}` === fData) {
+          k.dia += valor;
+          tRec.innerHTML += `<tr><td>${linha[4]}</td><td>${linha[8]}</td><td>${dataRaw}</td><td>${formatarMoeda(valor)}</td></tr>`;
         }
       });
 
-      dadosAtr.forEach(l => {
-        let vA = parseFloat(getVal(l, "Valor original")?.replace(/\./g, "").replace(",", ".") || 0);
-        k.atraso += vA;
-        tAtr.innerHTML += `<tr><td>${getVal(l, "Cliente")}</td><td>${getVal(l, "Data de vencimento")}</td><td>${getVal(l, "Status")}</td><td>${getVal(l, "Observação") || "-"}</td><td>${formatarMoeda(vA)}</td></tr>`;
+      // Índices Atrasados: 2=Cliente, 1=Vencim, 5=Status, 7=Obs, 4=Valor
+      dadosAtr.forEach(linha => {
+        let valor = parseFloat(linha[4]?.replace(/\./g, "").replace(",", ".")) || 0;
+        k.atraso += valor;
+        tAtr.innerHTML += `<tr><td>${linha[2]}</td><td>${linha[1]}</td><td>${linha[5]}</td><td>${linha[7] || "-"}</td><td>${formatarMoeda(valor)}</td></tr>`;
       });
-
       document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
       document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atraso);
     }
