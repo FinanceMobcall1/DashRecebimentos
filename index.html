@@ -14,7 +14,6 @@
     h1 { font-size: 1.8rem; color: white; margin: 0; }
     .filters { background: var(--card-bg); padding: 20px; border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: center; margin-bottom: 30px; }
 
-    /* Layout dos KPIs ajustado para 2 colunas */
     .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 40px; max-width: 800px; margin-left: auto; margin-right: auto; }
     .card { background: var(--card-bg); padding: 24px; border-radius: 20px; border: 1px solid var(--border); }
     .card-title { color: var(--text-muted); text-transform: uppercase; font-size: 0.85rem; }
@@ -53,6 +52,7 @@
     const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=0&single=true";
     const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=420641834&single=true";
     let dadosRec = [], dadosAtr = [];
+    let primeiraExecucao = true;
 
     const formatarMoeda = (v) => "R$ " + (parseFloat(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
@@ -61,14 +61,29 @@
       Papa.parse(URL_ATR, { download: true, header: true, complete: res => { dadosAtr = res.data; verificarCarregamento(); } });
     }
 
-    function verificarCarregamento() { if(dadosRec.length > 0 && dadosAtr.length > 0) processarDados(); }
+    function verificarCarregamento() {
+      if(dadosRec.length > 0 && dadosAtr.length > 0) {
+        if(primeiraExecucao) definirDataMaxima();
+        processarDados();
+      }
+    }
+
+    function definirDataMaxima() {
+      let datas = dadosRec.map(l => {
+        let p = l["Data de recebimento"]?.split('/');
+        return p ? new Date(p[2], p[1]-1, p[0]) : null;
+      }).filter(d => d);
+
+      let dataMaisRecente = new Date(Math.max.apply(null, datas));
+      document.getElementById('filtroData').value = dataMaisRecente.toISOString().split('T')[0];
+      primeiraExecucao = false;
+    }
 
     function processarDados() {
       const fData = document.getElementById('filtroData').value;
       const tRec = document.querySelector("#tabRecebimentos tbody");
       const tAtr = document.querySelector("#tabAtrasos tbody");
       tRec.innerHTML = ""; tAtr.innerHTML = "";
-
       let k = { dia: 0, atraso: 0 };
 
       dadosRec.forEach(l => {
@@ -84,10 +99,8 @@
       dadosAtr.forEach(l => {
         let vA = parseFloat(l["Valor original"]?.replace(/\./g, "").replace(",", ".") || 0);
         k.atraso += vA;
-        // Adicionada coluna Observação
         tAtr.innerHTML += `<tr><td>${l["Cliente"]}</td><td>${l["Data de vencimento"]}</td><td>${l["Status"]}</td><td>${l["Observação"] || "-"}</td><td>${formatarMoeda(vA)}</td></tr>`;
       });
-
       document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
       document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atraso);
     }
