@@ -42,7 +42,7 @@
   </div>
 
   <div class="secoes">
-    <div class="secao"><h2>Recebimentos Filtrados</h2><table id="tabRecebimentos"><thead><tr><th>Cliente</th><th>Data</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
+    <div class="secao"><h2>Recebimentos Filtrados</h2><table id="tabRecebimentos"><thead><tr><th>Cliente</th><th>OS</th><th>Data</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
     <div class="secao"><h2>Clientes em Atraso</h2><table id="tabAtrasos"><thead><tr><th>Cliente</th><th>Vencim.</th><th>Status</th><th>Obs.</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
   </div>
 
@@ -50,9 +50,9 @@
     const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=0&single=true";
     const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=420641834&single=true";
     let dadosRec = [], dadosAtr = [];
-    let primeiraExecucao = true;
 
     const formatarMoeda = (v) => "R$ " + (parseFloat(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    const getVal = (obj, key) => obj[Object.keys(obj).find(k => k.trim().toLowerCase() === key.trim().toLowerCase())];
 
     function carregar() {
       Papa.parse(URL_REC, { download: true, header: true, complete: res => { dadosRec = res.data; verificarCarregamento(); } });
@@ -61,27 +61,11 @@
 
     function verificarCarregamento() {
       if(dadosRec.length > 0 && dadosAtr.length > 0) {
-        if(primeiraExecucao) definirDataMaxima();
+        let ontem = new Date();
+        ontem.setDate(ontem.getDate() - 1);
+        document.getElementById('filtroData').value = ontem.toISOString().split('T')[0];
         processarDados();
       }
-    }
-
-    function definirDataMaxima() {
-      let datas = dadosRec.map(l => {
-        let rawDate = l["Data de recebimento"];
-        if (!rawDate) return null;
-        let p = rawDate.split('/');
-        let d = new Date(p[2], p[1]-1, p[0]);
-        return isNaN(d.getTime()) ? null : d;
-      }).filter(d => d !== null);
-
-      if (datas.length > 0) {
-        let dataMaisRecente = new Date(Math.max.apply(null, datas));
-        document.getElementById('filtroData').value = dataMaisRecente.toISOString().split('T')[0];
-      } else {
-        document.getElementById('filtroData').value = new Date().toISOString().split('T')[0];
-      }
-      primeiraExecucao = false;
     }
 
     function processarDados() {
@@ -92,19 +76,21 @@
       let k = { dia: 0, atraso: 0 };
 
       dadosRec.forEach(l => {
-        let vR = parseFloat(l[" Valor recebido "]?.replace(/\./g, "").replace(",", ".") || 0);
-        let dataP = l["Data de recebimento"]?.split('/');
-        let dataPagFormat = dataP ? `${dataP[2]}-${dataP[1]}-${dataP[0]}` : "";
+        let vR = parseFloat(getVal(l, "Valor recebido")?.replace(/\./g, "").replace(",", ".") || 0);
+        let rawDate = getVal(l, "Data de recebimento");
+        let p = rawDate?.split('/');
+        let dataPagFormat = p ? `${p[2]}-${p[1]}-${p[0]}` : "";
+
         if(dataPagFormat === fData) {
           k.dia += vR;
-          tRec.innerHTML += `<tr><td>${l["Cliente"]}</td><td>${l["Data de recebimento"]}</td><td>${formatarMoeda(vR)}</td></tr>`;
+          tRec.innerHTML += `<tr><td>${getVal(l, "Cliente")}</td><td>${getVal(l, "OS")}</td><td>${rawDate}</td><td>${formatarMoeda(vR)}</td></tr>`;
         }
       });
 
       dadosAtr.forEach(l => {
-        let vA = parseFloat(l["Valor original"]?.replace(/\./g, "").replace(",", ".") || 0);
+        let vA = parseFloat(getVal(l, "Valor original")?.replace(/\./g, "").replace(",", ".") || 0);
         k.atraso += vA;
-        tAtr.innerHTML += `<tr><td>${l["Cliente"]}</td><td>${l["Data de vencimento"]}</td><td>${l["Status"]}</td><td>${l["Observação"] || "-"}</td><td>${formatarMoeda(vA)}</td></tr>`;
+        tAtr.innerHTML += `<tr><td>${getVal(l, "Cliente")}</td><td>${getVal(l, "Data de vencimento")}</td><td>${getVal(l, "Status")}</td><td>${getVal(l, "Observação") || "-"}</td><td>${formatarMoeda(vA)}</td></tr>`;
       });
 
       document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
