@@ -41,52 +41,62 @@
     <div class="secao"><h2>Recebimentos Filtrados</h2><table id="tabRecebimentos"><thead><tr><th>Cliente</th><th>OS</th><th>Data</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
     <div class="secao"><h2>Clientes em Atraso</h2><table id="tabAtrasos"><thead><tr><th>Cliente</th><th>Vencim.</th><th>Status</th><th>Obs.</th><th>Valor</th></tr></thead><tbody></tbody></table></div>
   </div>
-  <script>
+    <script>
     const URL_REC = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=0&single=true";
     const URL_ATR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdtP7kBeoxSO6aSd1dFY9obnPFs95A6KFQ7cYehOc1f7kNNJ4PZuRxbQom288CshAbSJTO8jeY9esT/pubhtml?gid=420641834&single=true";
-    let dadosRec = [], dadosAtr = [];
 
-    const formatarMoeda = (v) => "R$ " + (parseFloat(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    // Função para buscar valor pelo nome da coluna (ignora maiúsculas/minúsculas e espaços)
+    function getVal(row, header, map) {
+        const index = map[header.toLowerCase()];
+        return index !== undefined ? row[index] : "-";
+    }
 
     function carregar() {
-      Papa.parse(URL_REC, { download: true, header: false, skipEmptyLines: true, complete: res => { dadosRec = res.data.slice(1); verificarCarregamento(); } });
-      Papa.parse(URL_ATR, { download: true, header: false, skipEmptyLines: true, complete: res => { dadosAtr = res.data.slice(1); verificarCarregamento(); } });
+        Papa.parse(URL_REC, { download: true, complete: resRec => {
+            Papa.parse(URL_ATR, { download: true, complete: resAtr => {
+                const mapRec = criarMapa(resRec.data[0]);
+                const mapAtr = criarMapa(resAtr.data[0]);
+                processar(resRec.data.slice(1), resAtr.data.slice(1), mapRec, mapAtr);
+            }});
+        }});
     }
 
-    function verificarCarregamento() {
-      if(dadosRec.length > 0 && dadosAtr.length > 0) {
+    function criarMapa(headers) {
+        let map = {};
+        headers.forEach((h, i) => map[h.trim().toLowerCase()] = i);
+        return map;
+    }
+
+    function processar(recebimentos, atrasados, mapRec, mapAtr) {
         let ontem = new Date(); ontem.setDate(ontem.getDate() - 1);
-        document.getElementById('filtroData').value = ontem.toISOString().split('T')[0];
-        processarDados();
-      }
-    }
+        const fData = document.getElementById('filtroData').value || ontem.toISOString().split('T')[0];
+        document.getElementById('filtroData').value = fData;
 
-    function processarDados() {
-      const fData = document.getElementById('filtroData').value;
-      const tRec = document.querySelector("#tabRecebimentos tbody");
-      const tAtr = document.querySelector("#tabAtrasos tbody");
-      tRec.innerHTML = ""; tAtr.innerHTML = "";
-      let k = { dia: 0, atraso: 0 };
+        const tRec = document.querySelector("#tabRecebimentos tbody");
+        const tAtr = document.querySelector("#tabAtrasos tbody");
+        tRec.innerHTML = ""; tAtr.innerHTML = "";
+        let k = { dia: 0, atraso: 0 };
 
-      // Índices Recebimentos: 4=Cliente, 5=Valor, 8=OS, 9=DataRec
-      dadosRec.forEach(linha => {
-        let valor = parseFloat(linha[5]?.replace(/\./g, "").replace(",", ".")) || 0;
-        let dataRaw = linha[9]; 
-        let p = dataRaw?.split('/');
-        if (p && p.length === 3 && `${p[2]}-${p[1]}-${p[0]}` === fData) {
-          k.dia += valor;
-          tRec.innerHTML += `<tr><td>${linha[4]}</td><td>${linha[8]}</td><td>${dataRaw}</td><td>${formatarMoeda(valor)}</td></tr>`;
-        }
-      });
+        recebimentos.forEach(l => {
+            let dataRaw = getVal(l, "Data de recebimento", mapRec);
+            let p = dataRaw?.split('/');
+            let dataPagFormat = (p && p.length === 3) ? `${p[2]}-${p[1]}-${p[0]}` : "";
 
-      // Índices Atrasados: 2=Cliente, 1=Vencim, 5=Status, 7=Obs, 4=Valor
-      dadosAtr.forEach(linha => {
-        let valor = parseFloat(linha[4]?.replace(/\./g, "").replace(",", ".")) || 0;
-        k.atraso += valor;
-        tAtr.innerHTML += `<tr><td>${linha[2]}</td><td>${linha[1]}</td><td>${linha[5]}</td><td>${linha[7] || "-"}</td><td>${formatarMoeda(valor)}</td></tr>`;
-      });
-      document.getElementById("kpiDia").textContent = formatarMoeda(k.dia);
-      document.getElementById("kpiAtrasado").textContent = formatarMoeda(k.atraso);
+            if(dataPagFormat === fData) {
+                let valor = parseFloat(getVal(l, "Valor recebido", mapRec)?.replace(/\./g, "").replace(",", ".")) || 0;
+                k.dia += valor;
+                tRec.innerHTML += `<tr><td>${getVal(l, "Cliente", mapRec)}</td><td>${getVal(l, "OS", mapRec)}</td><td>${dataRaw}</td><td>R$ ${valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td></tr>`;
+            }
+        });
+
+        atrasados.forEach(l => {
+            let valor = parseFloat(getVal(l, "Valor original", mapAtr)?.replace(/\./g, "").replace(",", ".")) || 0;
+            k.atraso += valor;
+            tAtr.innerHTML += `<tr><td>${getVal(l, "Cliente", mapAtr)}</td><td>${getVal(l, "Data de vencimento", mapAtr)}</td><td>${getVal(l, "Status", mapAtr)}</td><td>${getVal(l, "Observações", mapAtr)}</td><td>R$ ${valor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td></tr>`;
+        });
+
+        document.getElementById("kpiDia").textContent = "R$ " + k.dia.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+        document.getElementById("kpiAtrasado").textContent = "R$ " + k.atraso.toLocaleString('pt-BR', {minimumFractionDigits: 2});
     }
     carregar();
   </script>
